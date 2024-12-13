@@ -237,6 +237,25 @@ class _CustomMaterialIndicatorState extends State<CustomMaterialIndicator> {
       widget.controller ??
       (_internalIndicatorController ??= IndicatorController());
 
+  final isShowing = ValueNotifier<bool>(false);
+
+  @override
+  void initState() {
+    super.initState();
+    _initialize();
+  }
+
+  Future<void> _initialize() async {
+    try {
+      if (widget.onInitialize != null) {
+        isShowing.value = true;
+        await widget.onInitialize!();
+      }
+    } finally {
+      isShowing.value = false;
+    }
+  }
+
   @override
   void didUpdateWidget(covariant CustomMaterialIndicator oldWidget) {
     super.didUpdateWidget(oldWidget);
@@ -400,20 +419,31 @@ class _CustomMaterialIndicatorState extends State<CustomMaterialIndicator> {
         return Stack(
           children: <Widget>[
             widget.scrollableBuilder(context, child, controller),
-            PositionedIndicatorContainer(
-              edgeOffset: widget.edgeOffset,
-              displacement: widget.displacement,
-              controller: controller,
-              child: ScaleTransition(
-                scale: controller.isFinalizing
-                    ? _valueAnimation
-                    : const AlwaysStoppedAnimation(1.0),
-                child: indicator,
-              ),
+            ValueListenableBuilder<bool>(
+              valueListenable: isShowing,
+              builder: (_, value, __) {
+                return value
+                    ? const SizedBox.shrink()
+                    : PositionedIndicatorContainer(
+                        edgeOffset: widget.edgeOffset,
+                        displacement: widget.displacement,
+                        controller: controller,
+                        child: ScaleTransition(
+                          scale: controller.isFinalizing
+                              ? _valueAnimation
+                              : const AlwaysStoppedAnimation(1.0),
+                          child: indicator,
+                        ),
+                      );
+              },
             ),
-            InitialIndicatorContainer(
-              onInitialize: widget.onInitialize,
-              indicator: indicator,
+            ValueListenableBuilder<bool>(
+              valueListenable: isShowing,
+              builder: (_, value, __) {
+                return value
+                    ? const Center(child: CircularProgressIndicator())
+                    : const SizedBox.shrink();
+              },
             ),
           ],
         );
@@ -425,52 +455,7 @@ class _CustomMaterialIndicatorState extends State<CustomMaterialIndicator> {
   @override
   void dispose() {
     _internalIndicatorController?.dispose();
+    isShowing.dispose();
     super.dispose();
-  }
-}
-
-class InitialIndicatorContainer extends StatefulWidget {
-  const InitialIndicatorContainer({
-    super.key,
-    required this.indicator,
-    this.onInitialize,
-  });
-  final Widget indicator;
-  final AsyncCallback? onInitialize;
-
-  @override
-  State<InitialIndicatorContainer> createState() =>
-      _InitialIndicatorContainerState();
-}
-
-class _InitialIndicatorContainerState extends State<InitialIndicatorContainer> {
-  final isShowing = ValueNotifier<bool>(false);
-  @override
-  void initState() {
-    super.initState();
-    _initialize();
-  }
-
-  Future<void> _initialize() async {
-    try {
-      if (widget.onInitialize != null) {
-        isShowing.value = true;
-        await widget.onInitialize!();
-      }
-    } finally {
-      isShowing.value = false;
-    }
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    return ValueListenableBuilder<bool>(
-      valueListenable: isShowing,
-      builder: (context, value, child) {
-        return value
-            ? const Center(child: CircularProgressIndicator())
-            : const SizedBox();
-      },
-    );
   }
 }

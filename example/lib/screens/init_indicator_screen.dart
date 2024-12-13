@@ -15,7 +15,7 @@ class InitIndicatorScreen extends StatelessWidget {
       ),
       body: CustomMaterialIndicator(
         onInitialize: () async =>
-            await Future.delayed(const Duration(seconds: 2)),
+            await Future.delayed(const Duration(seconds: 4)),
         onRefresh: () async => await Future.delayed(const Duration(seconds: 2)),
         backgroundColor: Colors.white,
         child: const ExampleList(),
