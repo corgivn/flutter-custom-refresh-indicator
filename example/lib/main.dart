@@ -1,17 +1,18 @@
 import 'package:example/screens/ball_indicator_screen.dart';
 import 'package:example/screens/envelope_indicator_screen.dart';
 import 'package:example/screens/horizontal_screen.dart';
+import 'package:example/screens/init_indicator_screen.dart';
 import 'package:example/screens/presentation_screen.dart';
 import 'package:example/screens/programmatically_controlled_indicator_screen.dart';
 import 'package:example/widgets/web_frame.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
+import 'screens/check_mark_indicator_screen.dart';
 import 'screens/custom_material_indicator_screen.dart';
 import 'screens/fetch_more_screen.dart';
 import 'screens/ice_cream_indicator_screen.dart';
 import 'screens/plane_indicator_screen.dart';
-import 'screens/check_mark_indicator_screen.dart';
 import 'screens/warp_indicator_screen.dart';
 import 'utils/mobile_like_scroll_behavior.dart';
 import 'widgets/example_list.dart';
@@ -48,6 +49,7 @@ class MyApp extends StatelessWidget {
         '/horizontal': (context) => const HorizontalScreen(),
         '/programmatically-controlled': (context) =>
             const ProgrammaticallyControlled(),
+        '/initial-indicator': (context) => const InitIndicatorScreen(),
       },
     );
   }
@@ -139,6 +141,18 @@ class MainScreen extends StatelessWidget {
               ),
             ),
             const ListSection(label: "Indicator examples"),
+            ElevatedButton(
+              child: Container(
+                height: 50,
+                alignment: Alignment.center,
+                child: const Text("Initial Indicator"),
+              ),
+              onPressed: () => Navigator.pushNamed(
+                context,
+                '/initial-indicator',
+              ),
+            ),
+            const SizedBox(height: 16),
             ElevatedButton(
               child: Container(
                 height: 50,
