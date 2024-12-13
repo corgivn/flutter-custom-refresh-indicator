@@ -26,6 +26,9 @@ class CustomMaterialIndicator extends StatefulWidget {
   /// {@macro custom_refresh_indicator.on_refresh}
   final AsyncCallback onRefresh;
 
+  /// {@macro custom_refresh_indicator.on_initialize}
+  final AsyncCallback? onInitialize;
+
   /// The distance from the child's top or bottom [edgeOffset] where
   /// the refresh indicator will settle. During the drag that exposes the refresh
   /// indicator, its actual displacement may significantly exceed this value.
@@ -135,6 +138,7 @@ class CustomMaterialIndicator extends StatefulWidget {
   const CustomMaterialIndicator({
     super.key,
     required this.child,
+    this.onInitialize,
     required this.onRefresh,
     this.indicatorBuilder,
     this.scrollableBuilder = _defaultBuilder,
@@ -179,6 +183,7 @@ class CustomMaterialIndicator extends StatefulWidget {
   const CustomMaterialIndicator.adaptive({
     super.key,
     required this.child,
+    this.onInitialize,
     required this.onRefresh,
     this.indicatorBuilder,
     this.scrollableBuilder = _defaultBuilder,
@@ -392,7 +397,6 @@ class _CustomMaterialIndicatorState extends State<CustomMaterialIndicator> {
                 : indicator,
           );
         }
-
         return Stack(
           children: <Widget>[
             widget.scrollableBuilder(context, child, controller),
@@ -407,6 +411,10 @@ class _CustomMaterialIndicatorState extends State<CustomMaterialIndicator> {
                 child: indicator,
               ),
             ),
+            InitialIndicatorContainer(
+              onInitialize: widget.onInitialize,
+              indicator: indicator,
+            ),
           ],
         );
       },
@@ -418,5 +426,51 @@ class _CustomMaterialIndicatorState extends State<CustomMaterialIndicator> {
   void dispose() {
     _internalIndicatorController?.dispose();
     super.dispose();
+  }
+}
+
+class InitialIndicatorContainer extends StatefulWidget {
+  const InitialIndicatorContainer({
+    super.key,
+    required this.indicator,
+    this.onInitialize,
+  });
+  final Widget indicator;
+  final AsyncCallback? onInitialize;
+
+  @override
+  State<InitialIndicatorContainer> createState() =>
+      _InitialIndicatorContainerState();
+}
+
+class _InitialIndicatorContainerState extends State<InitialIndicatorContainer> {
+  final isShowing = ValueNotifier<bool>(false);
+  @override
+  void initState() {
+    super.initState();
+    _initialize();
+  }
+
+  Future<void> _initialize() async {
+    try {
+      if (widget.onInitialize != null) {
+        isShowing.value = true;
+        await widget.onInitialize!();
+      }
+    } finally {
+      isShowing.value = false;
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return ValueListenableBuilder<bool>(
+      valueListenable: isShowing,
+      builder: (context, value, child) {
+        return value
+            ? const Center(child: CircularProgressIndicator())
+            : const SizedBox();
+      },
+    );
   }
 }
