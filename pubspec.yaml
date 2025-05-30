@@ -9,8 +9,7 @@ scripts:
   format: dart format . --line-length=120
 
 environment:
-  sdk: ">=2.17.0 <4.0.0"
-  flutter: ">=1.16.0"
+  sdk: ">=3.0.0 <4.0.0"
 
 dependencies:
   flutter:
