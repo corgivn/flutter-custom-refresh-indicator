@@ -284,7 +284,7 @@ class CustomMaterialIndicator extends HookWidget {
         }
       }
 
-      initialize();
+      Future.microtask(() => initialize());
       return null;
     }, [onInitialize]);
 
@@ -343,75 +343,79 @@ class CustomMaterialIndicator extends HookWidget {
             ? defaultMaterialIndicatorBuilder
             : defaultCupertinoIndicatorBuilder);
 
-    return CustomRefreshIndicator(
-      autoRebuild: false,
-      notificationPredicate: notificationPredicate,
-      onRefresh: onRefresh,
-      trigger: trigger,
-      triggerMode: triggerMode,
-      controller: controller,
-      durations: durations,
-      onStateChanged: onStateChanged,
-      trailingScrollIndicatorVisible: trailingScrollIndicatorVisible,
-      leadingScrollIndicatorVisible: leadingScrollIndicatorVisible,
-      builder: (context, child, controller) {
-        Widget indicator = autoRebuild
-            ? AnimatedBuilder(
-                animation: controller,
-                builder: (context, _) => indicatorBuilder(context, controller),
-              )
-            : indicatorBuilder(context, controller);
+    return PopScope(
+      canPop: !isShowing.value,
+      child: CustomRefreshIndicator(
+        autoRebuild: false,
+        notificationPredicate: notificationPredicate,
+        onRefresh: onRefresh,
+        trigger: trigger,
+        triggerMode: triggerMode,
+        controller: controller,
+        durations: durations,
+        onStateChanged: onStateChanged,
+        trailingScrollIndicatorVisible: trailingScrollIndicatorVisible,
+        leadingScrollIndicatorVisible: leadingScrollIndicatorVisible,
+        builder: (context, child, controller) {
+          Widget indicator = autoRebuild
+              ? AnimatedBuilder(
+                  animation: controller,
+                  builder: (context, _) =>
+                      indicatorBuilder(context, controller),
+                )
+              : indicatorBuilder(context, controller);
 
-        /// If indicatorBuilder is not provided
-        if (this.indicatorBuilder != null) {
-          indicator = Container(
-            width: 41,
-            height: 41,
-            margin: const EdgeInsets.all(4.0),
-            child: useMaterial && useMaterialContainer
-                ? Material(
-                    type: MaterialType.circle,
-                    clipBehavior: clipBehavior,
-                    color: backgroundColor,
-                    elevation: elevation,
-                    child: indicator,
-                  )
-                : indicator,
+          /// If indicatorBuilder is not provided
+          if (this.indicatorBuilder != null) {
+            indicator = Container(
+              width: 41,
+              height: 41,
+              margin: const EdgeInsets.all(4.0),
+              child: useMaterial && useMaterialContainer
+                  ? Material(
+                      type: MaterialType.circle,
+                      clipBehavior: clipBehavior,
+                      color: backgroundColor,
+                      elevation: elevation,
+                      child: indicator,
+                    )
+                  : indicator,
+            );
+          }
+          return Stack(
+            children: <Widget>[
+              scrollableBuilder(context, child, controller),
+              ValueListenableBuilder<bool>(
+                valueListenable: isShowing,
+                builder: (_, value, __) {
+                  return value
+                      ? const SizedBox.shrink()
+                      : PositionedIndicatorContainer(
+                          edgeOffset: edgeOffset,
+                          displacement: displacement,
+                          controller: controller,
+                          child: ScaleTransition(
+                            scale: controller.isFinalizing
+                                ? valueAnimation
+                                : const AlwaysStoppedAnimation(1.0),
+                            child: indicator,
+                          ),
+                        );
+                },
+              ),
+              ValueListenableBuilder<bool>(
+                valueListenable: isShowing,
+                builder: (_, value, __) {
+                  return value
+                      ? const Center(child: CircularProgressIndicator())
+                      : const SizedBox.shrink();
+                },
+              ),
+            ],
           );
-        }
-        return Stack(
-          children: <Widget>[
-            scrollableBuilder(context, child, controller),
-            ValueListenableBuilder<bool>(
-              valueListenable: isShowing,
-              builder: (_, value, __) {
-                return value
-                    ? const SizedBox.shrink()
-                    : PositionedIndicatorContainer(
-                        edgeOffset: edgeOffset,
-                        displacement: displacement,
-                        controller: controller,
-                        child: ScaleTransition(
-                          scale: controller.isFinalizing
-                              ? valueAnimation
-                              : const AlwaysStoppedAnimation(1.0),
-                          child: indicator,
-                        ),
-                      );
-              },
-            ),
-            ValueListenableBuilder<bool>(
-              valueListenable: isShowing,
-              builder: (_, value, __) {
-                return value
-                    ? const Center(child: CircularProgressIndicator())
-                    : const SizedBox.shrink();
-              },
-            ),
-          ],
-        );
-      },
-      child: child,
+        },
+        child: child,
+      ),
     );
   }
 }
