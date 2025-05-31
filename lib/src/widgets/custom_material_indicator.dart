@@ -134,6 +134,10 @@ class CustomMaterialIndicator extends HookWidget {
   /// By default 41 x 41.
   final Size indicatorSize;
 
+  /// Whether to show a loading indicator in the center.
+  /// When true, a CircularProgressIndicator will be displayed.
+  final bool isLoading;
+
   /// A default constructor that creates a CustomMaterialIndicator widget
   /// that replicates the behavior of the material indicator widget.
   const CustomMaterialIndicator({
@@ -164,6 +168,7 @@ class CustomMaterialIndicator extends HookWidget {
     this.color,
     this.useMaterialContainer = true,
     this.indicatorSize = defaultIndicatorSize,
+    this.isLoading = false,
   })  : assert(
           indicatorBuilder == null ||
               (color == null &&
@@ -208,6 +213,7 @@ class CustomMaterialIndicator extends HookWidget {
     this.semanticsValue,
     this.color,
     this.indicatorSize = defaultIndicatorSize,
+    this.isLoading = false,
   })  : assert(
           indicatorBuilder == null ||
               (color == null &&
@@ -287,6 +293,12 @@ class CustomMaterialIndicator extends HookWidget {
       Future.microtask(() => initialize());
       return null;
     }, [onInitialize]);
+
+    // Hook to update isShowing based on isLoading
+    useEffect(() {
+      isShowing.value = isLoading;
+      return null;
+    }, [isLoading]);
 
     // Hook for disposal
     useEffect(() {
@@ -407,7 +419,10 @@ class CustomMaterialIndicator extends HookWidget {
                 valueListenable: isShowing,
                 builder: (_, value, __) {
                   return value
-                      ? const Center(child: CircularProgressIndicator())
+                      ? Container(
+                          color: backgroundColor.withValues(alpha: 0.1),
+                          child:
+                              const Center(child: CircularProgressIndicator()))
                       : const SizedBox.shrink();
                 },
               ),
