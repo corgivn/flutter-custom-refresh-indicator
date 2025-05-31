@@ -2,6 +2,7 @@ import 'package:custom_refresh_indicator/custom_refresh_indicator.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_hooks/flutter_hooks.dart';
 
 /// A function type that builds a material-style indicator widget.
 ///
@@ -16,7 +17,7 @@ typedef MaterialIndicatorBuilder = Widget Function(
 /// the behavior of the material indicator widget.
 ///
 /// It allows for extensive customization of its appearance and behavior.
-class CustomMaterialIndicator extends StatefulWidget {
+class CustomMaterialIndicator extends HookWidget {
   /// {@macro custom_refresh_indicator.child}
   final Widget child;
 
@@ -227,139 +228,101 @@ class CustomMaterialIndicator extends StatefulWidget {
   static const defaultIndicatorSize = Size(41, 41);
 
   @override
-  State<CustomMaterialIndicator> createState() =>
-      _CustomMaterialIndicatorState();
-}
+  Widget build(BuildContext context) {
+    // Hook for internal indicator controller
+    final internalIndicatorController =
+        useMemoized(() => IndicatorController(), []);
+    final controller = this.controller ?? internalIndicatorController;
 
-class _CustomMaterialIndicatorState extends State<CustomMaterialIndicator> {
-  IndicatorController? _internalIndicatorController;
-  IndicatorController get controller =>
-      widget.controller ??
-      (_internalIndicatorController ??= IndicatorController());
+    // Hook for showing state
+    final isShowing = useState<bool>(false);
 
-  final isShowing = ValueNotifier<bool>(false);
+    // Hook for animations
+    final valueAnimation =
+        useMemoized(() => controller.normalize(), [controller]);
 
-  @override
-  void initState() {
-    super.initState();
-    _initialize();
-  }
+    // Hook for background and indicator colors
+    final backgroundColor = useMemoized(() {
+      return this.backgroundColor ??
+          ProgressIndicatorTheme.of(context).refreshBackgroundColor ??
+          Theme.of(context).canvasColor;
+    }, [this.backgroundColor, context]);
 
-  Future<void> _initialize() async {
-    try {
-      if (widget.onInitialize != null) {
-        isShowing.value = true;
-        await widget.onInitialize!();
-      }
-    } finally {
-      isShowing.value = false;
-    }
-  }
+    final indicatorColor = useMemoized(() {
+      return color ?? Theme.of(context).colorScheme.primary;
+    }, [color, context]);
 
-  @override
-  void didUpdateWidget(covariant CustomMaterialIndicator oldWidget) {
-    super.didUpdateWidget(oldWidget);
-
-    // When a new background color is provided.
-    if (oldWidget.backgroundColor != widget.backgroundColor) {
-      _backgroundColor = _getBackgroundColor();
-    }
-
-    // When a new controller is provided externally.
-    if (oldWidget.controller != widget.controller) {
-      if (widget.controller != null) {
-        // Dispose and remove the current internal controller, if it exists
-        _internalIndicatorController?.dispose();
-        _internalIndicatorController = null;
-      }
-
-      // Update animations/listeners.
-      _setupMaterialIndicator();
-    } else if (oldWidget.color != widget.color) {
-      // Update color animation.
-      _setupMaterialIndicator();
-    }
-
-    assert(
-      widget.controller == null ||
-          (widget.controller != null && _internalIndicatorController == null),
-      'An internal indicator should not exist when an external indicator is provided.',
-    );
-  }
-
-  Widget _defaultMaterialIndicatorBuilder(
-      BuildContext context, IndicatorController controller) {
-    final bool showIndeterminateIndicator = controller.isLoading ||
-        controller.isComplete ||
-        controller.isFinalizing;
-
-    return RefreshProgressIndicator(
-      semanticsLabel: widget.semanticsLabel ??
-          MaterialLocalizations.of(context).refreshIndicatorSemanticLabel,
-      semanticsValue: widget.semanticsValue,
-      value: showIndeterminateIndicator ? null : _valueAnimation.value,
-      valueColor: _colorAnimation,
-      backgroundColor: _backgroundColor,
-      strokeWidth: widget.strokeWidth,
-    );
-  }
-
-  Widget _defaultCupertinoIndicatorBuilder(
-      BuildContext context, IndicatorController controller) {
-    return CupertinoActivityIndicator(
-      color: widget.color,
-    );
-  }
-
-  late Animation<double> _valueAnimation;
-  late Animation<Color?> _colorAnimation;
-  late Color _indicatorColor;
-  late Color _backgroundColor;
-
-  @override
-  void didChangeDependencies() {
-    _setupMaterialIndicator();
-    super.didChangeDependencies();
-  }
-
-  Color _getBackgroundColor() {
-    return widget.backgroundColor ??
-        ProgressIndicatorTheme.of(context).refreshBackgroundColor ??
-        Theme.of(context).canvasColor;
-  }
-
-  Color _getIndicatorColor() {
-    return widget.color ?? Theme.of(context).colorScheme.primary;
-  }
-
-  void _setupMaterialIndicator() {
-    _valueAnimation = controller.normalize();
-    // Reset the current color.
-    _backgroundColor = _getBackgroundColor();
-    _indicatorColor = _getIndicatorColor();
-    final Color color = _indicatorColor;
-    if (color.alpha == 0x00) {
-      // Set an always stopped animation instead of a driven tween.
-      _colorAnimation = AlwaysStoppedAnimation<Color>(color);
-    } else {
-      // Respect the alpha of the given color.
-      _colorAnimation = _valueAnimation.drive(
-        ColorTween(
-          begin: color.withAlpha(0),
-          end: color.withAlpha(color.alpha),
-        ).chain(
-          CurveTween(
-            curve: const Interval(0.0, 1.0 / 1.5),
+    // Hook for color animation
+    final colorAnimation = useMemoized(() {
+      final color = indicatorColor;
+      if (color.alpha == 0x00) {
+        return AlwaysStoppedAnimation<Color>(color);
+      } else {
+        return valueAnimation.drive(
+          ColorTween(
+            begin: color.withAlpha(0),
+            end: color.withAlpha(color.alpha),
+          ).chain(
+            CurveTween(
+              curve: const Interval(0.0, 1.0 / 1.5),
+            ),
           ),
-        ),
+        );
+      }
+    }, [valueAnimation, indicatorColor]);
+
+    // Hook for initialization
+    useEffect(() {
+      Future<void> initialize() async {
+        try {
+          if (onInitialize != null) {
+            isShowing.value = true;
+            await onInitialize!();
+          }
+        } finally {
+          isShowing.value = false;
+        }
+      }
+
+      initialize();
+      return null;
+    }, [onInitialize]);
+
+    // Hook for disposal
+    useEffect(() {
+      return () {
+        if (this.controller == null) {
+          internalIndicatorController.dispose();
+        }
+      };
+    }, []);
+
+    Widget defaultMaterialIndicatorBuilder(
+        BuildContext context, IndicatorController controller) {
+      final bool showIndeterminateIndicator = controller.isLoading ||
+          controller.isComplete ||
+          controller.isFinalizing;
+
+      return RefreshProgressIndicator(
+        semanticsLabel: semanticsLabel ??
+            MaterialLocalizations.of(context).refreshIndicatorSemanticLabel,
+        semanticsValue: semanticsValue,
+        value: showIndeterminateIndicator ? null : valueAnimation.value,
+        valueColor: colorAnimation,
+        backgroundColor: backgroundColor,
+        strokeWidth: strokeWidth,
       );
     }
-  }
 
-  @override
-  Widget build(BuildContext context) {
+    Widget defaultCupertinoIndicatorBuilder(
+        BuildContext context, IndicatorController controller) {
+      return CupertinoActivityIndicator(
+        color: color,
+      );
+    }
+
     bool useMaterial = true;
-    if (widget._isAdaptive) {
+    if (_isAdaptive) {
       final ThemeData theme = Theme.of(context);
       switch (theme.platform) {
         case TargetPlatform.android:
@@ -375,24 +338,24 @@ class _CustomMaterialIndicatorState extends State<CustomMaterialIndicator> {
       }
     }
 
-    final MaterialIndicatorBuilder indicatorBuilder = widget.indicatorBuilder ??
+    final MaterialIndicatorBuilder indicatorBuilder = this.indicatorBuilder ??
         (useMaterial
-            ? _defaultMaterialIndicatorBuilder
-            : _defaultCupertinoIndicatorBuilder);
+            ? defaultMaterialIndicatorBuilder
+            : defaultCupertinoIndicatorBuilder);
 
     return CustomRefreshIndicator(
       autoRebuild: false,
-      notificationPredicate: widget.notificationPredicate,
-      onRefresh: widget.onRefresh,
-      trigger: widget.trigger,
-      triggerMode: widget.triggerMode,
+      notificationPredicate: notificationPredicate,
+      onRefresh: onRefresh,
+      trigger: trigger,
+      triggerMode: triggerMode,
       controller: controller,
-      durations: widget.durations,
-      onStateChanged: widget.onStateChanged,
-      trailingScrollIndicatorVisible: widget.trailingScrollIndicatorVisible,
-      leadingScrollIndicatorVisible: widget.leadingScrollIndicatorVisible,
+      durations: durations,
+      onStateChanged: onStateChanged,
+      trailingScrollIndicatorVisible: trailingScrollIndicatorVisible,
+      leadingScrollIndicatorVisible: leadingScrollIndicatorVisible,
       builder: (context, child, controller) {
-        Widget indicator = widget.autoRebuild
+        Widget indicator = autoRebuild
             ? AnimatedBuilder(
                 animation: controller,
                 builder: (context, _) => indicatorBuilder(context, controller),
@@ -400,17 +363,17 @@ class _CustomMaterialIndicatorState extends State<CustomMaterialIndicator> {
             : indicatorBuilder(context, controller);
 
         /// If indicatorBuilder is not provided
-        if (widget.indicatorBuilder != null) {
+        if (this.indicatorBuilder != null) {
           indicator = Container(
             width: 41,
             height: 41,
             margin: const EdgeInsets.all(4.0),
-            child: useMaterial && widget.useMaterialContainer
+            child: useMaterial && useMaterialContainer
                 ? Material(
                     type: MaterialType.circle,
-                    clipBehavior: widget.clipBehavior,
-                    color: _backgroundColor,
-                    elevation: widget.elevation,
+                    clipBehavior: clipBehavior,
+                    color: backgroundColor,
+                    elevation: elevation,
                     child: indicator,
                   )
                 : indicator,
@@ -418,19 +381,19 @@ class _CustomMaterialIndicatorState extends State<CustomMaterialIndicator> {
         }
         return Stack(
           children: <Widget>[
-            widget.scrollableBuilder(context, child, controller),
+            scrollableBuilder(context, child, controller),
             ValueListenableBuilder<bool>(
               valueListenable: isShowing,
               builder: (_, value, __) {
                 return value
                     ? const SizedBox.shrink()
                     : PositionedIndicatorContainer(
-                        edgeOffset: widget.edgeOffset,
-                        displacement: widget.displacement,
+                        edgeOffset: edgeOffset,
+                        displacement: displacement,
                         controller: controller,
                         child: ScaleTransition(
                           scale: controller.isFinalizing
-                              ? _valueAnimation
+                              ? valueAnimation
                               : const AlwaysStoppedAnimation(1.0),
                           child: indicator,
                         ),
@@ -448,14 +411,7 @@ class _CustomMaterialIndicatorState extends State<CustomMaterialIndicator> {
           ],
         );
       },
-      child: widget.child,
+      child: child,
     );
-  }
-
-  @override
-  void dispose() {
-    _internalIndicatorController?.dispose();
-    isShowing.dispose();
-    super.dispose();
   }
 }
