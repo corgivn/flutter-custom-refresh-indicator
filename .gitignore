@@ -28,6 +28,7 @@
 .pub-cache/
 .pub/
 build/
+scripts/**
 /pubspec.lock
 
 # Android related
