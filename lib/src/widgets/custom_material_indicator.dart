@@ -248,11 +248,11 @@ class CustomMaterialIndicator extends HookWidget {
         useMemoized(() => controller.normalize(), [controller]);
 
     // Hook for background and indicator colors
-    final backgroundColor = useMemoized(() {
-      return this.backgroundColor ??
-          ProgressIndicatorTheme.of(context).refreshBackgroundColor ??
-          Theme.of(context).canvasColor;
-    }, [this.backgroundColor, context]);
+    // final backgroundColor = useMemoized(() {
+    //   return this.backgroundColor ??
+    //       ProgressIndicatorTheme.of(context).refreshBackgroundColor ??
+    //       Theme.of(context).canvasColor;
+    // }, [this.backgroundColor, context]);
 
     final indicatorColor = useMemoized(() {
       return color ?? Theme.of(context).colorScheme.primary;
@@ -282,17 +282,17 @@ class CustomMaterialIndicator extends HookWidget {
       Future<void> initialize() async {
         try {
           if (onInitialize != null) {
-            isShowing.value = true;
+           isShowing.value = true;
             await onInitialize!();
           }
         } finally {
-          isShowing.value = false;
+         isShowing.value = false;
         }
       }
 
       Future.microtask(() => initialize());
       return null;
-    }, [onInitialize]);
+    }, []);
 
     // Hook to update isShowing based on isLoading
     useEffect(() {
@@ -420,7 +420,7 @@ class CustomMaterialIndicator extends HookWidget {
                 builder: (_, value, __) {
                   return value
                       ? Container(
-                          color: backgroundColor.withValues(alpha: 0.1),
+                          color: backgroundColor?.withValues(alpha: 0.1),
                           child:
                               const Center(child: CircularProgressIndicator()))
                       : const SizedBox.shrink();
